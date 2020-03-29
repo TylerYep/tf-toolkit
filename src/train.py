@@ -21,13 +21,9 @@ else:
     from tqdm import tqdm
 
 
-def train_and_validate(model, loader, optimizer, criterion, metrics, mode):
-    if mode == Mode.TRAIN:
-        model.train()
-        torch.set_grad_enabled(True)
-    else:
-        model.eval()
-        torch.set_grad_enabled(False)
+def train_and_validate(args, model, loader, optimizer, criterion, metrics, mode):
+    model.train() if mode == Mode.TRAIN else model.eval()
+    torch.set_grad_enabled(mode == Mode.TRAIN)
 
     metrics.set_num_batches(len(loader))
     with tqdm(desc=str(mode), total=len(loader), ncols=120) as pbar:
@@ -35,7 +31,7 @@ def train_and_validate(model, loader, optimizer, criterion, metrics, mode):
             if mode == Mode.TRAIN:
                 optimizer.zero_grad()
 
-            output = model(data)
+            output = model(*data) if isinstance(data, (list, tuple)) else model(data)
             loss = criterion(output, target)
             if mode == Mode.TRAIN:
                 loss.backward()
@@ -50,20 +46,25 @@ def train_and_validate(model, loader, optimizer, criterion, metrics, mode):
 
 def init_metrics(args, checkpoint):
     run_name = checkpoint.get('run_name', util.get_run_name(args))
+    print(f'Storing checkpoints in: {run_name}\n')
     metric_checkpoint = checkpoint.get('metric_obj', {})
     metrics = MetricTracker(run_name, args.log_interval, **metric_checkpoint)
     return run_name, metrics
+
+
+def get_optimizer_schedulers(args, model):
+    optimizer = optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer) if args.scheduler else None
+    return optimizer, scheduler
 
 
 def load_model(args, device, checkpoint, init_params, train_loader):
     criterion = get_loss_initializer(args.loss)
     model = get_model_initializer(args.model)(*init_params).to(device)
     assert model.input_shape, 'Model should have input_shape as an attribute'
-    # setattr(model, 'summary', functools.partial(summary, model, input_shape))
 
-    optimizer = optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+    optimizer, scheduler = get_optimizer_schedulers(args, model)
     verify_model(model, train_loader, optimizer, criterion, device)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer) if args.scheduler else None
     util.load_state_dict(checkpoint, model, optimizer, scheduler)
     return model, criterion, optimizer, scheduler
 
@@ -80,12 +81,11 @@ def train(arg_list=None):
 
     util.set_rng_state(checkpoint)
     start_epoch = metrics.epoch + 1
-    print(f'Storing checkpoints in: {run_name}\n')
     for epoch in range(start_epoch, start_epoch + args.epochs):
         print(f'Epoch [{epoch}/{start_epoch + args.epochs - 1}]')
         metrics.next_epoch()
-        tr_loss = train_and_validate(model, train_loader, optimizer, criterion, metrics, Mode.TRAIN)
-        val_loss = train_and_validate(model, val_loader, optimizer, criterion, metrics, Mode.VAL)
+        train_and_validate(args, model, train_loader, optimizer, criterion, metrics, Mode.TRAIN)
+        val_loss = train_and_validate(args, model, val_loader, None, criterion, metrics, Mode.VAL)
 
         if args.scheduler:
             scheduler.step(val_loss)
@@ -102,7 +102,7 @@ def train(arg_list=None):
             'metric_obj': metrics.json_repr()
         }, run_name, is_best)
 
-    # if args.visualize:
-    #     visualize_trained(model, train_loader, run_name)
+    if args.visualize:
+        visualize_trained(model, train_loader, run_name)
 
     return val_loss

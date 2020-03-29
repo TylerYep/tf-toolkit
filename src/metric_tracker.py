@@ -7,6 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from src.metrics import get_metric
 from src.dataset import CLASS_LABELS
 
+
 @unique
 class Mode(Enum):
     TRAIN = 'Train'
@@ -22,7 +23,7 @@ class MetricTracker:
     def __init__(self,
                  run_name,
                  log_interval,
-                 epoch=0,
+                 epoch=1,
                  num_batches=0,
                  metric_data=None,
                  best_metric=None):
