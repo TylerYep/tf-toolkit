@@ -16,8 +16,11 @@ CLASS_LABELS = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
                 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
 
 
+
 def get_collate_fn(device):
-    return lambda x: map(lambda b: b.to(device), default_collate(x))
+    to_device = lambda b: list(map(to_device, b)) if isinstance(b, (list, tuple)) else b.to(device)
+    return lambda x: map(to_device, default_collate(x))
+
 
 
 def load_train_data(args, device, num_examples=None, val_split=0.2):
