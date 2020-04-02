@@ -1,7 +1,9 @@
 import sys
 import warnings
-import torch
 import torchsummary
+import torch
+
+from src import util
 
 if 'google.colab' in sys.modules:
     from tqdm import tqdm_notebook as tqdm
@@ -33,32 +35,32 @@ def check_batch_dimension(model, loader, optimizer, test_val=2):
     """
     model.eval()
     torch.set_grad_enabled(True)
-    data, _ = next(iter(loader))
+    data, _ = next(loader)
     optimizer.zero_grad()
     data.requires_grad_()
 
-    output = model(data)
+    output = model(*data) if isinstance(data, (list, tuple)) else model(data)
     loss = output[test_val].sum()
     loss.backward()
 
-    assert loss != 0, "Loss is not exactly zero."
+    assert loss != 0, "Loss should be greater than zero."
     assert (data.grad[test_val] != 0).any(), "The gradient of the test input is not nonzero."
     assert (data.grad[:test_val] == 0.).all() and (data.grad[test_val+1:] == 0.).all(), \
-        "All other inputs in the batch are not zero."
+        "There are nonzero gradients in the batch, when they should all be zero."
 
 
-def overfit_example(model, loader, optimizer, criterion, device, batch_size=5, max_iters=50):
+def overfit_example(model, loader, optimizer, criterion, device, batch_size=2, max_iters=50):
     """
     Verifies that the provided model can overfit a single batch or example.
     """
     model.eval()
     torch.set_grad_enabled(True)
-    data, target = next(iter(loader))
+    data, target = next(loader)
     data, target = data[:batch_size], target[:batch_size]
     with tqdm(desc='Verify Model', total=max_iters, ncols=120) as pbar:
         for _ in range(max_iters):
             optimizer.zero_grad()
-            output = model(data)
+            output = model(*data) if isinstance(data, (list, tuple)) else model(data)
             loss = criterion(output, target)
             if torch.allclose(loss, torch.tensor(0.).to(device)):
                 break
@@ -68,7 +70,7 @@ def overfit_example(model, loader, optimizer, criterion, device, batch_size=5, m
             pbar.update()
 
     if not torch.allclose(loss, torch.tensor(0.).to(device)):
-        warnings.warn(f"Overfit Loss is not sufficiently close to 0: {loss}"
+        warnings.warn(f"\nOverfit Loss is not sufficiently close to 0: {loss}\n"
                       f"This may indicate an error with your model.", RuntimeWarning)
 
 
@@ -94,11 +96,11 @@ def check_all_layers_training(model, loader, optimizer, criterion):
     """
     model.train()
     torch.set_grad_enabled(True)
-    data, target = next(iter(loader))
+    data, target = next(loader)
     before = [param.clone().detach() for param in model.parameters()]
 
     optimizer.zero_grad()
-    output = model(data)
+    output = model(*data) if isinstance(data, (list, tuple)) else model(data)
     loss = criterion(output, target)
     loss.backward()
     optimizer.step()
