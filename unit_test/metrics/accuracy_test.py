@@ -5,7 +5,6 @@ from src.metrics import Accuracy
 
 
 class TestAccuracy:
-
     @staticmethod
     def test_calculate_accuracy():
         output = torch.tensor([
@@ -32,10 +31,9 @@ class TestAccuracy:
             'batch_size': 3
         })
 
-        accuracy = metric.update(val_dict)
+        _ = metric.update(val_dict)
 
         assert metric.get_batch_result(3) == 2/3
-
 
     @staticmethod
     def test_epoch_accuracy():
@@ -50,6 +48,6 @@ class TestAccuracy:
             'batch_size': 3
         })
 
-        accuracy = metric.update(val_dict)
+        _ = metric.update(val_dict)
 
         assert str(metric) == 'Accuracy: 66.67%'

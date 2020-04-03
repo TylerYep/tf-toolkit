@@ -3,6 +3,7 @@ import random
 import numpy as np
 import torch
 import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
 
 from src import util
 from src.args import init_pipeline
@@ -20,7 +21,7 @@ else:
 
 
 def train_and_validate(model, loader, optimizer, criterion, metrics, mode):
-    model.train() if mode == Mode.TRAIN else model.eval()
+    model.train() if mode == Mode.TRAIN else model.eval()  # pylint: disable=expression-not-assigned
     torch.set_grad_enabled(mode == Mode.TRAIN)
 
     with tqdm(desc=str(mode), total=len(loader), ncols=120) as pbar:
@@ -45,7 +46,7 @@ def get_optimizer(args, model):
 
 
 def get_scheduler(args, optimizer):
-    return optim.lr_scheduler.ReduceLROnPlateau(optimizer) if args.scheduler else None
+    return lr_scheduler.ReduceLROnPlateau(optimizer) if args.scheduler else None
 
 
 def load_model(args, device, init_params, loader):

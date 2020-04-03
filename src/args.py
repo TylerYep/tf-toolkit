@@ -28,7 +28,7 @@ def get_parsed_arguments(arg_list):
                         help='for loading a checkpoint model')
 
     parser.add_argument('--config', type=str, default='',
-                        help='run model using given json config file: configs/<name>.json')
+                        help='use given config file as args: <checkpoints, configs>/<name>.json')
 
     parser.add_argument('--epochs', type=int, default=100, metavar='N',
                         help='number of epochs to train (default: 100)')
