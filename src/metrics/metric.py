@@ -1,13 +1,20 @@
 class Metric:
     def __init__(self):
         self.name = type(self).__name__
-        self.init_val = 0.0
+        self.value = 0.0
         self.epoch_avg = 0.0
         self.running_avg = 0.0
         self.num_examples = 0
 
     def __repr__(self):
-        return f'{self.name}: {self.get_epoch_result():.4f} '
+        return f'{self.name}: {self.get_epoch_result():.4f}'
+
+    def __eq__(self, other):
+        return (self.name == other.name
+                and self.value == other.value
+                and self.epoch_avg == other.epoch_avg
+                and self.running_avg == other.running_avg
+                and self.num_examples == other.num_examples)
 
     def reset(self):
         self.running_avg = 0.0
@@ -19,4 +26,5 @@ class Metric:
 
     def get_epoch_result(self):
         assert self.num_examples > 0
-        return self.epoch_avg / self.num_examples
+        self.value = self.epoch_avg / self.num_examples
+        return self.value

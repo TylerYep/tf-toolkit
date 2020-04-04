@@ -24,9 +24,11 @@ def train_and_validate(model, loader, optimizer, criterion, metrics, mode):
     model.train() if mode == Mode.TRAIN else model.eval()  # pylint: disable=expression-not-assigned
     torch.set_grad_enabled(mode == Mode.TRAIN)
 
+    metrics.reset_hard()
     with tqdm(desc=str(mode), total=len(loader), ncols=120) as pbar:
         for i, (data, target) in enumerate(loader):
             if mode == Mode.TRAIN:
+                # If you have multiple optimizers, use model.zero_grad() instead.
                 optimizer.zero_grad()
 
             output = model(*data) if isinstance(data, (list, tuple)) else model(data)
@@ -38,7 +40,7 @@ def train_and_validate(model, loader, optimizer, criterion, metrics, mode):
             tqdm_dict = metrics.batch_update(i, len(loader), data, loss, output, target, mode)
             pbar.set_postfix(tqdm_dict)
             pbar.update()
-    return metrics.get_epoch_results(mode)
+    metrics.epoch_update(mode)
 
 
 def get_optimizer(args, model):
@@ -46,7 +48,7 @@ def get_optimizer(args, model):
 
 
 def get_scheduler(args, optimizer):
-    return lr_scheduler.ReduceLROnPlateau(optimizer) if args.scheduler else None
+    return lr_scheduler.StepLR(optimizer, step_size=1, gamma=args.gamma)
 
 
 def load_model(args, device, init_params, loader):
@@ -55,7 +57,7 @@ def load_model(args, device, init_params, loader):
     assert model.input_shape, 'Model must have input_shape as an attribute'
 
     optimizer = get_optimizer(args, model)
-    scheduler = get_scheduler(args, optimizer)
+    scheduler = get_scheduler(args, optimizer) if args.scheduler else None
     verify_model(model, loader, optimizer, criterion, device)
     return model, criterion, optimizer, scheduler
 
@@ -67,33 +69,32 @@ def train(arg_list=None):
     model, criterion, optimizer, scheduler = load_model(args, device, init_params, sample_loader)
     util.load_state_dict(checkpoint, model, optimizer, scheduler)
     metrics = MetricTracker(args, checkpoint)
-    if args.visualize:
+    if not args.no_visualize:
         metrics.add_network(model, sample_loader)
         visualize(model, sample_loader, metrics.run_name)
 
     util.set_rng_state(checkpoint)
     for _ in range(args.epochs):
         metrics.next_epoch()
-        _ = train_and_validate(model, train_loader, optimizer, criterion, metrics, Mode.TRAIN)
-        val_loss = train_and_validate(model, val_loader, None, criterion, metrics, Mode.VAL)
-
+        train_and_validate(model, train_loader, optimizer, criterion, metrics, Mode.TRAIN)
+        train_and_validate(model, val_loader, None, criterion, metrics, Mode.VAL)
         if args.scheduler:
-            scheduler.step(val_loss)
+            scheduler.step()
 
-        is_best = metrics.update_best_metric(val_loss)
-        util.save_checkpoint({
-            'model_init': init_params,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict() if args.scheduler else None,
-            'rng_state': random.getstate(),
-            'np_rng_state': np.random.get_state(),
-            'torch_rng_state': torch.get_rng_state(),
-            'run_name': metrics.run_name,
-            'metric_obj': metrics.json_repr()
-        }, is_best)
+        if not args.no_save:
+            util.save_checkpoint({
+                'model_init': init_params,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict() if args.scheduler else None,
+                'rng_state': random.getstate(),
+                'np_rng_state': np.random.get_state(),
+                'torch_rng_state': torch.get_rng_state(),
+                'run_name': metrics.run_name,
+                'metric_obj': metrics.json_repr()
+            }, metrics.is_best)
 
-    if args.visualize:
+    if not args.no_visualize:
         visualize_trained(model, sample_loader, metrics.run_name)
 
-    return val_loss
+    return metrics

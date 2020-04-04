@@ -5,14 +5,18 @@ class TestTrain:
 
     @staticmethod
     def test_one_epoch():
-        val_loss = train(['--epoch=1', '--name=TEST'])
-        assert round(val_loss, 7) == 1.6898811
+        config = ['--no-visualize', '--num-examples=100', '--no-save']
+
+        metrics = train(['--epoch=1', '--name=TEST'] + config)
+
+        assert round(metrics.get_primary_value(), 7) == 4.4841685
 
     @staticmethod
     def test_epoch_resume():
-        _ = train(['--epoch=2', '--name=TEST'])
-        val_loss_end = train(['--epoch=2', '--checkpoint=TEST'])
+        config = ['--no-visualize', '--num-examples=100']
+        _ = train(['--epoch=2', '--name=TEST'] + config)
+        metrics_end = train(['--epoch=2', '--checkpoint=TEST'] + config)
 
-        val_loss_test = train(['--epoch=4'])
+        metrics_test = train(['--epoch=4'] + config)
 
-        assert val_loss_test == val_loss_end
+        assert metrics_test == metrics_end

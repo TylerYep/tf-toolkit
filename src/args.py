@@ -57,6 +57,9 @@ def get_parsed_arguments(arg_list):
     parser.add_argument('--name', type=str, default='',
                         help='folder to save files to checkpoint/')
 
+    parser.add_argument('--no-save', action='store_true', default=False,
+                        help='do not save any checkpoints')
+
     parser.add_argument('--num-examples', type=int, default=None, metavar='N',
                         help='number of training examples')
 
@@ -66,10 +69,10 @@ def get_parsed_arguments(arg_list):
     parser.add_argument('--scheduler', action='store_true', default=False,
                         help='use learning rate scheduler')
 
-    parser.add_argument('--test-batch-size', type=int, default=128, metavar='N',
-                        help='input batch size for testing (default: 128)')
+    parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+                        help='input batch size for testing (default: 1000)')
 
-    parser.add_argument('--visualize', action='store_true', default=True,
+    parser.add_argument('--no-visualize', action='store_true', default=False,
                         help='save visualization files')
 
     return parser.parse_args(arg_list)
