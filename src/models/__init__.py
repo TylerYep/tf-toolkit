@@ -2,7 +2,9 @@ import sys
 
 from .rnn import BasicRNN
 from .cnn import BasicCNN
+from .lstm import BasicLSTM
 from .dense import DenseNet
+from .maskrcnn import MaskRCNN
 # from .unet import UNet
 # from .efficient_net import EfficientNet
 

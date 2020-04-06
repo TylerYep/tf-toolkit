@@ -28,7 +28,8 @@ def train_and_validate(model, loader, optimizer, criterion, metrics, mode):
     with tqdm(desc=str(mode), total=len(loader), ncols=120) as pbar:
         for i, (data, target) in enumerate(loader):
             if mode == Mode.TRAIN:
-                # If you have multiple optimizers, use model.zero_grad() instead.
+                # If you have multiple optimizers, use model.zero_grad().
+                # If you want to freeze layers, use optimizer.zero_grad().
                 optimizer.zero_grad()
 
             output = model(*data) if isinstance(data, (list, tuple)) else model(data)
@@ -37,28 +38,33 @@ def train_and_validate(model, loader, optimizer, criterion, metrics, mode):
                 loss.backward()
                 optimizer.step()
 
-            tqdm_dict = metrics.batch_update(i, len(loader), data, loss, output, target, mode)
+            batch_size = data[1].shape[0] if isinstance(data, (list, tuple)) else data.shape[0]
+            tqdm_dict = metrics.batch_update(i, len(loader), batch_size,
+                                             data, loss, output, target, mode)
             pbar.set_postfix(tqdm_dict)
             pbar.update()
     metrics.epoch_update(mode)
 
 
 def get_optimizer(args, model):
-    return optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+    params = filter(lambda p: p.requires_grad, model.parameters())
+    return optim.AdamW(params, lr=args.lr)
+    # return optim.SGD(params, lr=args.lr, momentum=0.9, weight_decay=0.0005)
 
 
 def get_scheduler(args, optimizer):
-    return lr_scheduler.StepLR(optimizer, step_size=1, gamma=args.gamma)
+    return lr_scheduler.StepLR(optimizer, step_size=1, gamma=args.gamma)  # step_size=3
 
 
 def load_model(args, device, init_params, loader):
     criterion = get_loss_initializer(args.loss)()
     model = get_model_initializer(args.model)(*init_params).to(device)
-    assert model.input_shape, 'Model must have input_shape as an attribute'
+    # assert model.input_shape, 'Model must have input_shape as an attribute'
 
     optimizer = get_optimizer(args, model)
     scheduler = get_scheduler(args, optimizer) if args.scheduler else None
-    verify_model(model, loader, optimizer, criterion, device)
+    if not args.no_verify:
+        verify_model(model, loader, optimizer, criterion, device, args.batch_dim)
     return model, criterion, optimizer, scheduler
 
 
