@@ -59,8 +59,6 @@ def get_scheduler(args, optimizer):
 def load_model(args, device, init_params, loader):
     criterion = get_loss_initializer(args.loss)()
     model = get_model_initializer(args.model)(*init_params).to(device)
-    # assert model.input_shape, 'Model must have input_shape as an attribute'
-
     optimizer = get_optimizer(args, model)
     scheduler = get_scheduler(args, optimizer) if args.scheduler else None
     if not args.no_verify:
@@ -101,6 +99,7 @@ def train(arg_list=None):
             }, metrics.is_best)
 
     if not args.no_visualize:
+        torch.set_grad_enabled(True)
         visualize_trained(model, sample_loader, metrics.run_name)
 
     return metrics

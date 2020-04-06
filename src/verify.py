@@ -15,17 +15,28 @@ def verify_model(model, loader, optimizer, criterion, device, batch_dim):
     You may need to change the batch_size or max_iters in overfit_example
     in order to overfit the batch.
     """
-    data, _ = next(loader)
-    dtypes = [tensor.dtype for tensor in data] if isinstance(data, (list, tuple)) else None
-    torchsummary.summary(model, model.input_shape, batch_dim=batch_dim, dtypes=dtypes)
-    check_batch_dimension(model, loader, optimizer, batch_dim)
+    model_summary(model, loader, batch_dim)
+    check_batch_dimension(model, loader, optimizer)
     overfit_example(model, loader, optimizer, criterion, device, batch_dim)
     check_all_layers_training(model, loader, optimizer, criterion)
     detect_NaN_tensors(model)
     print('Verification complete - all tests passed!')
 
 
-def check_batch_dimension(model, loader, optimizer, batch_dim=0, test_val=2):
+def model_summary(model, loader, batch_dim):
+    """
+    Prints out model using torchsummary.
+    """
+    if hasattr(model, 'input_shape'):
+        data, _ = next(loader)
+        dtypes = [tensor.dtype for tensor in data] if isinstance(data, (list, tuple)) else None
+        torchsummary.summary(model, model.input_shape, batch_dim=batch_dim, dtypes=dtypes)
+    else:
+        warnings.warn("Model should have input_shape as an attribute "
+                      "for torchsummary to work correctly.", RuntimeWarning)
+
+
+def check_batch_dimension(model, loader, optimizer, test_val=2):
     """
     Verifies that the provided model loads the data correctly. We do this by setting the
     loss to be something trivial (e.g. the sum of all outputs of example i), running the
