@@ -9,18 +9,19 @@ else:
     from tqdm import tqdm
 
 
-def verify_model(model, loader, optimizer, criterion, device, batch_dim):
+def verify_model(args, model, loader, optimizer, criterion, device):
     """
     Performs all necessary validation on your model to ensure correctness.
     You may need to change the batch_size or max_iters in overfit_example
     in order to overfit the batch.
     """
-    model_summary(model, loader, batch_dim)
-    check_batch_dimension(model, loader, optimizer)
-    overfit_example(model, loader, optimizer, criterion, device, batch_dim)
-    check_all_layers_training(model, loader, optimizer, criterion)
-    detect_NaN_tensors(model)
-    print('Verification complete - all tests passed!')
+    if not args.no_verify:
+        model_summary(model, loader, args.batch_dim)
+        check_batch_dimension(model, loader, optimizer)
+        overfit_example(model, loader, optimizer, criterion, device, args.batch_dim)
+        check_all_layers_training(model, loader, optimizer, criterion)
+        detect_NaN_tensors(model)
+        print('Verification complete - all tests passed!')
 
 
 def model_summary(model, loader, batch_dim):
