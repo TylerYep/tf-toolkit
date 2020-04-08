@@ -38,7 +38,7 @@ def train_and_validate(args, model, loader, optimizer, criterion, metrics, mode)
                 loss.backward()
                 optimizer.step()
 
-            batch_size = data[1].shape[args.batch_dim] if isinstance(data, (list, tuple)) \
+            batch_size = data[0].shape[args.batch_dim] if isinstance(data, (list, tuple)) \
                 else data.shape[args.batch_dim]
             tqdm_dict = metrics.batch_update(i, num_batches, batch_size,
                                              data, loss, output, target, mode)
@@ -97,8 +97,8 @@ def train(arg_list=None):
                 'metric_obj': metrics.json_repr()
             }, metrics.is_best)
 
+    torch.set_grad_enabled(True)
     if not args.no_visualize:
-        torch.set_grad_enabled(True)
         visualize_trained(model, sample_loader, metrics.run_name)
 
     return metrics
