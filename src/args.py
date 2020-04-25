@@ -1,27 +1,35 @@
-from typing import List, Optional
 import argparse
+import os
 import random
-import numpy as np
-import torch
+from typing import List, Optional
 
+import numpy as np
+
+import torch
 from src import util
 
 
 def init_pipeline(arg_list: Optional[List[str]] = None):
-    ''' Pass in the empty list to skip argument parsing. '''
+    """ Pass in the empty list to skip argument parsing. """
     set_random_seeds()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args = get_parsed_arguments(arg_list)
     if args.config:
-        args = util.json_to_args(args.config)
-    checkpoint = util.load_checkpoint(args.checkpoint)
+        # Update additional configs defined in the json file.
+        args = util.load_args_from_json(args.config)
+
+    checkpoint = {}
+    if args.checkpoint:
+        checkpoint_path = os.path.join(args.save_dir, args.checkpoint)
+        checkpoint = util.load_checkpoint(checkpoint_path, args.use_best)
     return args, device, checkpoint
 
 
 def get_parsed_arguments(arg_list):
+    # fmt: off
     parser = argparse.ArgumentParser(description='PyTorch ML Pipeline')
 
-    parser.add_argument('--batch-dim', type=int, default=0, metavar='B',
+    parser.add_argument('--batch-dim', type=int, default=int('0'), metavar='B',
                         help='batch dimension for training (default: 0)')
 
     parser.add_argument('--batch-size', type=int, default=128, metavar='B',
@@ -32,6 +40,9 @@ def get_parsed_arguments(arg_list):
 
     parser.add_argument('--config', type=str, default='',
                         help='use given config file as args: <checkpoints, configs>/<name>.json')
+
+    parser.add_argument('--config-dir', type=str, default='configs',
+                        help='config directory to use')
 
     parser.add_argument('--epochs', type=int, default=100, metavar='E',
                         help='number of epochs to train (default: 100)')
@@ -60,20 +71,26 @@ def get_parsed_arguments(arg_list):
     parser.add_argument('--name', type=str, default='', metavar='NAME',
                         help='existing folder in checkpoint/ to save files to')
 
-    parser.add_argument('--no-save', action='store_true', default=False,
-                        help='do not save any checkpoints')
-
     parser.add_argument('--num-examples', type=int, default=None, metavar='N',
                         help='number of training examples')
 
     parser.add_argument('--plot', action='store_true', default=False,
                         help='plot training examples')
 
+    parser.add_argument('--no-save', action='store_true', default=False,
+                        help='do not save any checkpoints')
+
+    parser.add_argument('--save-dir', type=str, default='checkpoints',
+                        help='checkpoint directory to use')
+
     parser.add_argument('--scheduler', action='store_true', default=False,
                         help='use learning rate scheduler')
 
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
+
+    parser.add_argument('--use-best', action='store_true', default=False,
+                        help='use checkpoint with best val metric rather than most recent')
 
     parser.add_argument('--no-verify', action='store_true', default=False,
                         help='do not perform model verification')
@@ -82,6 +99,7 @@ def get_parsed_arguments(arg_list):
                         help='do not save visualization files')
 
     return parser.parse_args(arg_list)
+    # fmt: on
 
 
 def set_random_seeds(seed=0):
